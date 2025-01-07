@@ -26,12 +26,6 @@ class DSConfigImageGeneration(TypedDict):
     compute_unused_metrics: Optional[bool]
 
 
-class DSConfigPartitioningMode(TypedDict):
-    options: List[str]
-    parametrized: bool
-    segment_size: int
-    smart: bool
-
 class DSPartitioningMode(Enum):
     PARAM = 1
     PARTITION_SIZE = 2

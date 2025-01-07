@@ -12,6 +12,7 @@ from sm.engine.ds_config import DSConfig, DSPartitioningMode
 from sm.engine.annotation.imzml_reader import LithopsImzMLReader
 from sm.engine.annotation_lithops.executor import SINGLE_CPU_MEMORY_MB, Executor
 from sm.engine.annotation_lithops.io import load_cobj, save_cobj, CloudObject
+from sm.engine.learning_plane.infer import infer
 
 
 logger = logging.getLogger('annotation-pipeline')
@@ -20,15 +21,18 @@ MAX_CHUNK_SIZE = 128 * 1024 ** 2  # 128MB
 MAX_MZ_VALUE = 10 ** 5
 
 
+def get_expected_size(imzml_reader: LithopsImzMLReader):
+    row_size = sum([4, np.dtype(imzml_reader.imzml_reader.mzPrecision).itemsize, np.dtype(imzml_reader.imzml_reader.intensityPrecision).itemsize])
+    return sum([ imzml_reader.imzml_reader.mzLengths[sp_i] * row_size for sp_i in np.argsort(imzml_reader.imzml_reader.intensityOffsets) ])
+
+
 def define_ds_segments(executor: Executor,
                        imzml_cobject: CloudObject,
                        ibd_cobject: CloudObject,
+                       imzml_reader: LithopsImzMLReader,
                        sample_n: int,
                        segm_n: int = None,
                        ds_segm_size_mb: int = None):
-
-    storage = executor.storage
-    imzml_reader = LithopsImzMLReader(storage, imzml_cobject, ibd_cobject)
 
     def get_segm_bounds(segm_n, storage: Storage):
         
@@ -64,7 +68,7 @@ def define_ds_segments(executor: Executor,
         (segm_n),
         runtime_memory=memory_capacity_mb,
     )
-    return ds_segm_bounds, imzml_reader
+    return ds_segm_bounds
 
 
 def partition_spectra(executor: Executor,
@@ -223,7 +227,7 @@ def merge_spectra_segments(executor: Executor,
     return ds_segms_cobjects, ds_segms_lens
 
 
-def set_load_ds_parallelism(ds_config: Union[dict, DSConfig]):
+def set_load_ds_parallelism(ds_config: Union[dict, DSConfig], imzml_reader: LithopsImzMLReader):
 
     num_chunks = None
     segm_n = None
@@ -244,9 +248,8 @@ def set_load_ds_parallelism(ds_config: Union[dict, DSConfig]):
             logger.warning('Both partition_number and segment_number are None, running on PARTITION_SIZE mode')
             partitioning_mode = DSPartitioningMode.PARTITION_SIZE
     elif partitioning_mode == DSPartitioningMode.SMART:
-        # TODO: integrate smart provisioning
-        num_chunks = None
-        segm_n = None
+        expected_size = get_expected_size(imzml_reader)
+        num_chunks, segm_n = infer(expected_size, "upload_partitions", "merge_segment")
 
     return num_chunks, segm_n
 
@@ -260,11 +263,15 @@ def load_ds_parallel(
 
     sample_sp_n = 500
 
-    num_chunks, segm_n = set_load_ds_parallelism(ds_config)
+    storage = executor.storage
+    imzml_reader = LithopsImzMLReader(storage, imzml_cobject, ibd_cobject)
 
-    ds_segm_bounds, imzml_reader = define_ds_segments(executor,
+    num_chunks, segm_n = set_load_ds_parallelism(ds_config, imzml_reader)
+
+    ds_segm_bounds = define_ds_segments(executor,
                                         imzml_cobject,
                                         ibd_cobject,
+                                        imzml_reader,
                                         sample_sp_n,
                                         segm_n,
                                         ds_segm_size_mb)

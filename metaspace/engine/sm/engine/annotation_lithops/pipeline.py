@@ -100,6 +100,7 @@ class Pipeline:  # pylint: disable=too-many-instance-attributes
         self.prepare_moldb(debug_validate=debug_validate)
 
         self.load_ds(use_cache=use_cache)
+        return None, None, None
         if debug_validate:
             self.validate_load_ds()
 
