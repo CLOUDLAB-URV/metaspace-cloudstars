@@ -221,11 +221,14 @@ def load_ds(
 
     conf = SMConfig.get_conf()
 
-    (imzml_reader, ds_segments_bounds, ds_segms_cobjs, ds_segm_lens,) = executor.call(
-        _load_ds,
-        (imzml_cobject, ibd_cobject, ds_segm_size_mb, conf),
-        runtime_memory=runtime_memory,
-    )
+    try:
+        (imzml_reader, ds_segments_bounds, ds_segms_cobjs, ds_segm_lens,) = executor.call(
+            _load_ds,
+            (imzml_cobject, ibd_cobject, ds_segm_size_mb, conf),
+            runtime_memory=runtime_memory,
+        )
+    except AssertionError as e:
+        assert False, f"Running as a distributed sort"
     logger.info(f'Segmented dataset chunks into {len(ds_segms_cobjs)} segments')
 
     return imzml_reader, ds_segments_bounds, ds_segms_cobjs, ds_segm_lens
