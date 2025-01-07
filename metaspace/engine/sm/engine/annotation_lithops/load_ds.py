@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import logging
@@ -14,7 +15,9 @@ from sm.engine.annotation.imzml_reader import LithopsImzMLReader
 from sm.engine.annotation_lithops.executor import Executor, MEM_LIMITS
 from sm.engine.annotation_lithops.io import CObj, load_cobj, save_cobj
 from sm.engine.config import SMConfig
+from sm.engine.ds_config import DSConfig
 from sm.engine.utils.perf_profile import SubtaskProfiler
+from sm.engine.annotation_lithops.load_ds_parallel import load_ds_parallel
 
 logger = logging.getLogger('annotation-pipeline')
 
@@ -196,6 +199,7 @@ def load_ds(
     ibd_cobject: CloudObject,
     ds_segm_size_mb: int,
     ds_id: Union[str, None],
+    ds_config: Union[Dict[dict, DSConfig]]
 ) -> Tuple[LithopsImzMLReader, np.ndarray, List[CObj[pd.DataFrame]], np.ndarray,]:
     try:
         imzml_head = executor.storage.head_object(imzml_cobject.bucket, imzml_cobject.key)
@@ -221,14 +225,30 @@ def load_ds(
 
     conf = SMConfig.get_conf()
 
-    try:
-        (imzml_reader, ds_segments_bounds, ds_segms_cobjs, ds_segm_lens,) = executor.call(
-            _load_ds,
-            (imzml_cobject, ibd_cobject, ds_segm_size_mb, conf),
-            runtime_memory=runtime_memory,
+    parallel = ds_config.get("parallel_load_ds", False)
+    if parallel:
+        (imzml_reader, ds_segments_bounds, ds_segms_cobjs, ds_segm_lens,) = load_ds_parallel(
+            executor=executor,
+            imzml_cobject=imzml_cobject,
+            ibd_cobject=ibd_cobject,
+            ds_segm_size_mb=ds_segm_size_mb,
+            ds_config=ds_config
         )
-    except AssertionError as e:
-        assert False, f"Running as a distributed sort"
+    else:
+        try:
+            (imzml_reader, ds_segments_bounds, ds_segms_cobjs, ds_segm_lens,) = executor.call(
+                _load_ds,
+                (imzml_cobject, ibd_cobject, ds_segm_size_mb, conf),
+                runtime_memory=runtime_memory,
+            )
+        except AssertionError:
+            (imzml_reader, ds_segments_bounds, ds_segms_cobjs, ds_segm_lens,) = load_ds_parallel(
+                executor=executor,
+                imzml_cobject=imzml_cobject,
+                ibd_cobject=ibd_cobject,
+                ds_segm_size_mb=ds_segm_size_mb,
+                ds_config=ds_config
+            )
     logger.info(f'Segmented dataset chunks into {len(ds_segms_cobjs)} segments')
 
     return imzml_reader, ds_segments_bounds, ds_segms_cobjs, ds_segm_lens

@@ -33,6 +33,9 @@ MEM_LIMITS = {
     'aws_ec2_256': 256 * 1024,
 }
 
+# Single CPU share in AWS Lambda
+SINGLE_CPU_MEMORY_MB = 1769
+
 
 class LithopsStalledException(Exception):
     pass

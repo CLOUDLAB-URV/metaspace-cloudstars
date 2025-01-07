@@ -135,7 +135,12 @@ class Pipeline:  # pylint: disable=too-many-instance-attributes
             self.ds_segms_cobjs,
             self.ds_segm_lens,
         ) = load_ds(
-            self.executor, self.imzml_cobject, self.ibd_cobject, self.ds_segm_size_mb, self.ds_id
+            self.executor,
+            self.imzml_cobject,
+            self.ibd_cobject,
+            self.ds_segm_size_mb,
+            self.ds_id,
+            self.ds_config
         )
 
         self.is_intensive_dataset = len(self.ds_segms_cobjs) * self.ds_segm_size_mb > 5000
