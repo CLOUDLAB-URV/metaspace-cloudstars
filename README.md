@@ -1,7 +1,5 @@
 # METASPACE
 
-[![Build Status](https://circleci.com/gh/metaspace2020/metaspace.svg?style=svg)](https://circleci.com/gh/metaspace2020/metaspace) [![Documentation Status](https://readthedocs.org/projects/sm-distributed/badge/?version=latest)](http://sm-distributed.readthedocs.org/en/latest/?badge=latest) [![codecov](https://codecov.io/gh/metaspace2020/metaspace/branch/master/graph/badge.svg)](https://codecov.io/gh/metaspace2020/metaspace)
-
 [The METASPACE platform](http://metaspace2020.eu/) hosts an engine for
  metabolite annotation of imaging mass spectrometry data as well as a
  spatial metabolite knowledgebase of the metabolites from thousands of
@@ -10,6 +8,31 @@
 The METASPACE platform is developed by software engineers, data scientists and
  mass spectrometrists from the [Alexandrov team at UCSD](https://ateam.ucsd.edu/).
  This work is a part of the [European project METASPACE](https://cordis.europa.eu/project/id/634402).
+
+## METASPACE in the CloudSkin project
+
+This repository is a fork of the original METASPACE project, used as the metabolomics use-case for the [CloudSkin european project](https://cloudskin.eu/) (Grant agreement ID [101092646](https://doi.org/10.3030/101092646)). We integrate the METASPACE metabolomics annotation pipeline with a module for smart resource provisioning of cloud/edge resources. The module is a prototype that could potentially work as a part of the learning plane described in CloudSkin's reference architecture. The contributions in this repository were carried out during a research internship for the [CloudStars project](https://www.cloudstars.eu/) (Grant agreement ID 101086248) in IBM Research GmbH (Zurich, Switzerland).
+
+## Contributions to the learning plane
+
+The pipeline consists on several stages with different parallelism -i.e. number of parallel functions. The number of parallel functions is currently defined by partition size. However, our preliminary results show that only considering partition size for parallelism level might be suboptimal in terms of execution time. 
+
+In [our prototype](metaspace/engine/sm/engine/learning_plane/) we implement an algorithm to choose the optimal parallelism with minimal overhead, considering CPU time, IO time and invocation overheads. We apply our algorithm to the sort operation of the input dataset, which happens to be critically influenced by the parallelism because of intermediate IO constraints.
+
+Originally, the pipeline ran the sort locally in an available and properly configured AWS EC2 instance. We modify the pipeline code to run the sort operation distributedly on AWS Lambda instances, in case there is are not any configured AWS EC2 instances available.
+
+For the learning plane to work, some profiling on the intermediate storage must be run beforeheand. The user has to setup its METASPACE and Lithops configuration correctly (see [the documentation](https://github.com/metaspace2020/metaspace/wiki/Project:-engine)) and then run:
+
+```python
+from sm.engine.config import SMConfig
+from sm.engine.learning_plane.io.io_model import profile_storage
+
+# Specify a correct path for you metaspace configuration file
+SM_CONFIG_PATH = "<my-config-file" 
+SMConfig.set_path(SM_CONFIG_PATH)
+
+profile_storage()
+```
 
 ## Projects
 
