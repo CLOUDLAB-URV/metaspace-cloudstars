@@ -249,7 +249,19 @@ def set_load_ds_parallelism(ds_config: Union[dict, DSConfig], imzml_reader: Lith
             partitioning_mode = DSPartitioningMode.PARTITION_SIZE
     elif partitioning_mode == DSPartitioningMode.SMART:
         expected_size = get_expected_size(imzml_reader)
-        num_chunks, segm_n = infer(expected_size, "upload_partitions", "merge_segment")
+        try:
+            num_chunks, segm_n = infer(
+                expected_size,
+                "upload_partitions",
+                "merge_segment",
+                1,
+                lambda p1, p2: 1,
+                lambda p1, p2: p1,
+                1
+            )
+        except FileNotFoundError as e:
+            print(e)
+            logger.warning('Could not infer partitioning parameters, running on PARTITION_SIZE mode')
 
     return num_chunks, segm_n
 

@@ -1,8 +1,5 @@
 from typing import TypedDict, Dict
 
-from lithops import FunctionExecutor
-
-
 class OverheadFunction(TypedDict):
     a: float
     b: float
@@ -20,13 +17,13 @@ REGISTERED_BACKENDS: Dict[str, OverheadFunction] = {
     }
 }
 
-def calculate_overhead(executor: FunctionExecutor, x: int):
+def calculate_overhead(lithops_config: dict, x: int):
 
-    backend = executor.backend
+    backend = lithops_config["lithops"]["backend"]
     args = REGISTERED_BACKENDS[backend].values()
     if backend != "localhost":
         if backend.startswith("aws"):
-            region = executor.config["aws"]["region"]
+            region = lithops_config["aws"]["region"]
             args = REGISTERED_BACKENDS[backend][region].values()
 
     return oh_func(x, *args)
